@@ -16,21 +16,22 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential
+        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential aidl
         pip install --upgrade buildozer cython
 
-    - name: Fix AIDL for Buildozer
+    - name: Fix SDK Manager
       run: |
-        # Скачиваем build-tools вручную, чтобы там появился aidl
-        mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
-        cd ~/.buildozer/android/platform/android-sdk/build-tools
-        wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip
-        unzip -q build-tools_r34-linux.zip
-        # Переименовываем папку, как этого ждет Buildozer
-        mv android-14 build-tools
-        # Создаем символическую ссылку на aidl
-        sudo ln -sf ~/.buildozer/android/platform/android-sdk/build-tools/build-tools/aidl /usr/local/bin/aidl
-        echo "AIDL установлен в build-tools!"
+        # Скачиваем свежие command-line tools от Google
+        mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+        cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        mv cmdline-tools latest
+        # Создаем структуру, которую ждет Buildozer
+        mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+        cp latest/bin/sdkmanager ~/.buildozer/android/platform/android-sdk/tools/bin/
+        chmod +x ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        echo "SDK Manager installed!"
 
     - name: Build APK
       run: |
