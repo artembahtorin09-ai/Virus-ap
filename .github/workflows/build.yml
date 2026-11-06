@@ -16,17 +16,21 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential aidl
+        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential
         pip install --upgrade buildozer cython
 
-    - name: Find and setup AIDL
+    - name: Fix AIDL for Buildozer
       run: |
-        # Ищем, куда установился aidl, и прописываем его в PATH
-        AIDL_PATH=$(which aidl)
-        echo "AIDL found at: $AIDL_PATH"
-        echo "AIDL=$AIDL_PATH" >> $GITHUB_ENV
-        # Создаем симлинк в папку, где Buildozer его точно найдет
-        sudo ln -sf $AIDL_PATH /usr/local/bin/aidl
+        # Скачиваем build-tools вручную, чтобы там появился aidl
+        mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
+        cd ~/.buildozer/android/platform/android-sdk/build-tools
+        wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip
+        unzip -q build-tools_r34-linux.zip
+        # Переименовываем папку, как этого ждет Buildozer
+        mv android-14 build-tools
+        # Создаем символическую ссылку на aidl
+        sudo ln -sf ~/.buildozer/android/platform/android-sdk/build-tools/build-tools/aidl /usr/local/bin/aidl
+        echo "AIDL установлен в build-tools!"
 
     - name: Build APK
       run: |
