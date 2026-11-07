@@ -19,26 +19,19 @@ jobs:
         sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential aidl
         pip install --upgrade buildozer cython
 
-    - name: Patch Buildozer (Skip SDK Manager & AIDL)
+    - name: Create Fake SDK Manager
       run: |
-        # 1. Находим файл build.py и target/android.py
-        BUILD_FILE=$(find /opt/hostedtoolcache/Python -name "build.py" -path "*buildozer*" | head -n 1)
-        TARGET_FILE=$(find /opt/hostedtoolcache/Python -name "android.py" -path "*buildozer*" | head -n 1)
+        # 1. Создаем папку, которую ждет Buildozer
+        mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+        # 2. Создаем фейковый файл sdkmanager, который просто возвращает "OK"
+        echo -e '#!/bin/bash\necho "SDK Manager: OK"\nexit 0' > ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        chmod +x ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
         
-        echo "Patching $BUILD_FILE and $TARGET_FILE"
-        
-        # 2. Отключаем проверку zlib
-        sed -i 's/if not self.check_zlib():/if False:/g' $TARGET_FILE
-        
-        # 3. Отключаем поиск sdkmanager (самая главная ошибка)
-        sed -i 's/if not sdkmanager_path/if False:/g' $TARGET_FILE
-        sed -i 's/raise BuildozerException/# raise BuildozerException/g' $TARGET_FILE
-        
-        # 4. Отключаем проверку aidl
-        sed -i 's/# Aidl not found, please install it\./print("AIDL skipped!")/g' $TARGET_FILE
-        sed -i 's/if not self.check_aidl():/if False:/g' $TARGET_FILE
-
-        echo "Buildozer patched successfully!"
+        # 3. Скачиваем настоящий aidl и кладем туда, где его ищет Buildozer
+        mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
+        wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip
+        unzip -q build-tools_r34-linux.zip -d ~/.buildozer/android/platform/android-sdk/build-tools
+        mv ~/.buildozer/android/platform/android-sdk/build-tools/android-14 ~/.buildozer/android/platform/android-sdk/build-tools/build-tools
 
     - name: Build APK
       run: |
