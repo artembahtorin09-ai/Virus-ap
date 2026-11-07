@@ -19,24 +19,31 @@ jobs:
         sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential aidl
         pip install --upgrade buildozer cython
 
-    - name: Setup Android Tools (Manual)
+    - name: Setup Fake SDK with Fake List
       run: |
-        # 1. Создаем папку для SDK
+        # 1. Создаем папки
         mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
         mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
 
-        # 2. Создаем фейковый sdkmanager, который просто говорит "OK"
-        echo -e '#!/bin/bash\necho "SDK Manager installed"\nexit 0' > ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        # 2. Создаем фейковый sdkmanager, который выдает правильный список версий
+        cat << 'EOF' > ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        #!/bin/bash
+        if [[ "$*" == *"--list"* ]]; then
+            echo "Available Packages:"
+            echo "  build-tools;34.0.0"
+            echo "  platforms;android-33"
+        else
+            echo "Installed successfully"
+        fi
+        exit 0
+        EOF
         chmod +x ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
 
-        # 3. Скачиваем настоящий build-tools (чтобы был aidl)
+        # 3. Скачиваем настоящий build-tools 34.0.0
         cd ~/.buildozer/android/platform/android-sdk/build-tools
         wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip
         unzip -q build-tools_r34-linux.zip
-        mv android-14 build-tools
-        
-        # 4. Создаем фейковый aidl в системной папке (на всякий случай)
-        sudo ln -sf ~/.buildozer/android/platform/android-sdk/build-tools/build-tools/aidl /usr/local/bin/aidl
+        mv android-14 34.0.0
 
     - name: Build APK
       run: |
