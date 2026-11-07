@@ -19,26 +19,33 @@ jobs:
         sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential aidl
         pip install --upgrade buildozer cython
 
-    - name: Patch Buildozer (Skip checks)
+    - name: Accept Android Licenses & Patch Buildozer
       run: |
-        # Находим файл target/android.py
+        # 1. Скачиваем sdkmanager и принимаем лицензии
+        mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+        cd ~/.buildozer/android/platform/android-sdk/cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip
+        mv cmdline-tools latest
+        yes | latest/bin/sdkmanager --licenses || true
+        
+        # 2. Патчим Buildozer, чтобы он использовал системный aidl и не искал его в build-tools
         TARGET_FILE=$(find /opt/hostedtoolcache/Python -name "android.py" -path "*buildozer*" | head -n 1)
         echo "Target file: $TARGET_FILE"
         
         # Отключаем проверку zlib
         sed -i 's/if not self.check_zlib():/if False:/g' $TARGET_FILE
         
-        # Отключаем проверку aidl (если она есть)
-        sed -i 's/# Aidl not found, please install it\./print("AIDL skipped!")/g' $TARGET_FILE
+        # Заменяем путь к aidl на системный (/usr/bin/aidl)
+        sed -i 's|aidl = join(self.build_tools_dir, .aidl.)|aidl = "/usr/bin/aidl"|g' $TARGET_FILE
         
-        # Отключаем проверку sdkmanager
-        sed -i 's/if not sdkmanager path/if False:/g' $TARGET_FILE
+        # На всякий случай отключаем вызов исключения
+        sed -i 's/# Aidl not found, please install it\./print("AIDL skipped! Using system aidl.")/g' $TARGET_FILE
         
-        echo "Buildozer patched!"
+        echo "Buildozer patched and licenses accepted!"
 
     - name: Build APK
       run: |
-        # Запускаем сборку
         buildozer -v android debug
 
     - name: Upload APK
