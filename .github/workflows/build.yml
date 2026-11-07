@@ -16,26 +16,27 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential
+        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev build-essential aidl
         pip install --upgrade buildozer cython
 
-    - name: Patch Buildozer (Skip SDK & AIDL Checks)
+    - name: Setup Android Tools (Manual)
       run: |
-        # Находим файл android.py
-        TARGET_FILE=$(find /opt/hostedtoolcache/Python -name "android.py" -path "*buildozer*" | head -n 1)
-        echo "Patching $TARGET_FILE"
+        # 1. Создаем папку для SDK
+        mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+        mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
+
+        # 2. Создаем фейковый sdkmanager, который просто говорит "OK"
+        echo -e '#!/bin/bash\necho "SDK Manager installed"\nexit 0' > ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+        chmod +x ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+
+        # 3. Скачиваем настоящий build-tools (чтобы был aidl)
+        cd ~/.buildozer/android/platform/android-sdk/build-tools
+        wget -q https://dl.google.com/android/repository/build-tools_r34-linux.zip
+        unzip -q build-tools_r34-linux.zip
+        mv android-14 build-tools
         
-        # Отключаем проверку SDK Manager
-        sed -i 's/if not sdkmanager_path/if False:/g' $TARGET_FILE
-        sed -i 's/raise BuildozerException/# raise BuildozerException/g' $TARGET_FILE
-        
-        # Отключаем проверку AIDL (правим только саму строку с ошибкой)
-        sed -i 's/if not self.check_aidl():/if False:/g' $TARGET_FILE
-        
-        # Отключаем проверку zlib
-        sed -i 's/if not self.check_zlib():/if False:/g' $TARGET_FILE
-        
-        echo "Buildozer patched! Let's go!"
+        # 4. Создаем фейковый aidl в системной папке (на всякий случай)
+        sudo ln -sf ~/.buildozer/android/platform/android-sdk/build-tools/build-tools/aidl /usr/local/bin/aidl
 
     - name: Build APK
       run: |
